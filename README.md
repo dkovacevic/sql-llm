@@ -2,9 +2,7 @@
 
 This repository shows how to **fine-tune a TinyLLaMA model** for **Text-to-SQL generation** using the [Gretel synthetic text-to-sql dataset](https://huggingface.co/datasets/gretelai/synthetic_text_to_sql) with **LoRA adapters**, and then export it for **local inference in Ollama**.
 
-It’s optimized for **Apple Silicon (M1/M2/M3)** using **MPS** acceleration.
-
----
+This guide walks through training, converting, quantizing, and running a SQL-aware LLM locally with [llama.cpp](https://github.com/ggerganov/llama.cpp) and [Ollama](https://ollama.ai).
 
 ## 1. Environment Setup
 
@@ -18,31 +16,33 @@ source .venv/bin/activate
 We pin to versions that work well together for training & conversion:
 
 ```bash
-pip install --upgrade pip
+ip install --upgrade pip
 pip uninstall -y transformers trl accelerate peft datasets huggingface_hub torchvision torchaudio
 
-pip install     torch==2.4.1     transformers==4.43.3     trl==0.9.6     accelerate==0.33.0     peft==0.12.0     datasets==2.20.0     huggingface_hub==0.23.5
-```
+pip install \
+    torch==2.4.1 \
+    transformers==4.43.3 \
+    trl==0.9.6 \
+    accelerate==0.33.0 \
+    peft==0.12.0 \
+    datasets==2.20.0 \
+    huggingface_hub==0.23.5
+    
+    ```
 
-> **Note:** We skip installing `torchvision` / `torchaudio` since they're not needed here and can cause MPS issues on macOS.
+## 3. Train / Fine-tune Model
 
----
-
-## 2. Training
-
-### 2.1 Model choice
-We use [`TinyLlama/TinyLlama-1.1B-Chat-v1.0`](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0) because:
-- LLaMA architecture → exportable to GGUF for Ollama.
-- Small enough to train quickly on MPS.
-- Compatible with LoRA adapters.
-
+For faster runs:
+- `MAXLEN=256`
+- Use `select(range(500))` instead of full dataset
+- `max_steps=20`
 
 Run:
 ```bash
-python3.12 main.py
+python main.py
 ```
 
----
+## 4. Convert HuggingFace Model to GGUF
 
 ## 3. Convert to GGUF (for Ollama)
 
@@ -62,26 +62,67 @@ python3.12 convert_hf_to_gguf.py ../merged-model-tinyllama     --outfile ../llam
 ## 4. Quantization (optional but recommended)
 
 ```bash
-./quantize ../llama-sql-f16.gguf ../llama-sql-q4.gguf q4_0
+./build/bin/llama-quantize ../llama-sql-f16.gguf ../llama-sql-Q4_K_M.gguf Q4_K_M
 ```
 
----
-
-## 5. Create Ollama Model
-
-### 5.1 Create a `Modelfile`
+Resulting file sizes:
 ```
-FROM ./llama-sql-q4.gguf
-PARAMETER stop "<|im_end|>"
-TEMPLATE """{{ .Prompt }}"""
+llama-sql-f16.gguf  -> ~2.0 GB
+llama-sql-Q4_K_M.gguf -> ~637 MB
 ```
 
-### 5.2 Register with Ollama
+## 7. Create Ollama Model
+
+`Modelfile` example:
+```
+FROM ./llama-sql-Q4_K_M.gguf
+TEMPLATE """
+### Context:
+{{{{ context }}}}
+
+### Question:
+{{{{ question }}}}
+
+### Response:
+"""
+PARAMETER temperature 0
+```
+
+Create model in Ollama:
 ```bash
 ollama create sql-llm -f Modelfile
 ```
 
-### 5.3 Run it
+## 8. Run Queries
+
+Example:
 ```bash
-ollama run sql-llm
+ollama run sql-llm "Users(id INT, name TEXT, age INT)
+Orders(id INT, user_id INT, total NUMERIC)
+
+Question:
+Find top 5 users by total spend."
 ```
+
+Expected output:
+```
+<sql_query>
+SELECT
+  u.id,
+  u.name,
+  COALESCE(SUM(o.total), 0) AS total_spend
+FROM Users u
+LEFT JOIN Orders o ON o.user_id = u.id
+GROUP BY u.id, u.name
+ORDER BY total_spend DESC
+LIMIT 5;
+</sql_query>
+<explanation>
+Join Orders to Users on user_id, aggregate totals, sort by spend descending, and return top 5 users.
+</explanation>
+```
+
+---
+**Notes:**
+- Ollama’s template variables (`{{{{ context }}}}`, `{{{{ question }}}}`) require a matching `TEMPLATE` in `Modelfile`.
+- If Ollama fails with `unknown flag: --var`, pass all input as a single string instead of separate `--var` arguments.
