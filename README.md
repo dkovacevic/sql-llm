@@ -7,6 +7,7 @@ This guide walks through training, converting, quantizing, and running a SQL-awa
 ## 1. Environment Setup
 
 ### 1.1 Create & activate virtual environment
+
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
@@ -16,7 +17,7 @@ source .venv/bin/activate
 We pin to versions that work well together for training & conversion:
 
 ```bash
-ip install --upgrade pip
+pip install --upgrade pip
 pip uninstall -y transformers trl accelerate peft datasets huggingface_hub torchvision torchaudio
 
 pip install \
@@ -28,7 +29,7 @@ pip install \
     datasets==2.20.0 \
     huggingface_hub==0.23.5
     
-    ```
+```
 
 ## 3. Train / Fine-tune Model
 
@@ -44,22 +45,20 @@ python main.py
 
 ## 4. Convert HuggingFace Model to GGUF
 
-## 3. Convert to GGUF (for Ollama)
-
-### 3.1 Clone llama.cpp
+### 4.1 Clone llama.cpp
 ```bash
 git clone https://github.com/ggerganov/llama.cpp.git
 cd llama.cpp
 ```
 
-### 3.2 Convert merged HF model to GGUF
+### 4.2 Convert merged HF model to GGUF
 ```bash
 python3.12 convert_hf_to_gguf.py ../merged-model-tinyllama     --outfile ../llama-sql-f16.gguf     --outtype f16
 ```
 
 ---
 
-## 4. Quantization (optional but recommended)
+## 5. Quantization (optional but recommended)
 
 ```bash
 ./build/bin/llama-quantize ../llama-sql-f16.gguf ../llama-sql-Q4_K_M.gguf Q4_K_M
@@ -71,7 +70,7 @@ llama-sql-f16.gguf  -> ~2.0 GB
 llama-sql-Q4_K_M.gguf -> ~637 MB
 ```
 
-## 7. Create Ollama Model
+## 6. Create Ollama Model
 
 `Modelfile` example:
 ```
@@ -88,7 +87,7 @@ TEMPLATE """
 PARAMETER temperature 0
 ```
 
-Create model in Ollama:
+## 7. Create model in Ollama:
 ```bash
 ollama create sql-llm -f Modelfile
 ```

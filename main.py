@@ -15,7 +15,7 @@ print("device:", device)
 # -----------------------------
 # Model + tokenizer (LLaMA-arch)
 # -----------------------------
-MAXLEN = 256
+MAXLEN = 1024
 BASE = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # llama-arch, gguf-friendly
 
 tokenizer = AutoTokenizer.from_pretrained(BASE, use_fast=True)
@@ -71,7 +71,7 @@ def to_pair(ex):
 
 train = (
     ds.shuffle(seed=42)
-    .select(range(500))                 # faster run
+    .select(range(5000))                 # faster run
     .map(to_pair, remove_columns=ds.column_names)
 )
 
@@ -85,10 +85,10 @@ args = TrainingArguments(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,
     learning_rate=2e-4,
-    max_steps=20,                 # quick PoC
-    warmup_steps=5,
-    logging_steps=5,
-    save_steps=1000,
+    max_steps=500,                 # quick PoC
+    warmup_steps=20,
+    logging_steps=10,
+    save_steps=250,
     fp16=False, bf16=False,       # IMPORTANT: off for accelerate on MPS
     dataloader_pin_memory=False,
     optim="adamw_torch",          # <- avoid Accelerate optimizer shims
