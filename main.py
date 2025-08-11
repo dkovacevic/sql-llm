@@ -16,6 +16,8 @@ print("device:", device)
 # Model + tokenizer (LLaMA-arch)
 # -----------------------------
 MAXLEN = 1024
+
+# BASE = "Qwen/Qwen2.5-1.5B-Instruct"  # small enough for M1 Pro
 BASE = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # llama-arch, gguf-friendly
 
 tokenizer = AutoTokenizer.from_pretrained(BASE, use_fast=True)

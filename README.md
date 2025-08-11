@@ -31,7 +31,7 @@ pip install \
     
 ```
 
-## 3. Train / Fine-tune Model
+## 2. Train / Fine-tune Model
 
 For faster runs:
 - `MAXLEN=256`
@@ -43,22 +43,22 @@ Run:
 python main.py
 ```
 
-## 4. Convert HuggingFace Model to GGUF
+## 3. Convert HuggingFace Model to GGUF
 
-### 4.1 Clone llama.cpp
+### 3.1 Clone llama.cpp
 ```bash
 git clone https://github.com/ggerganov/llama.cpp.git
 cd llama.cpp
 ```
 
-### 4.2 Convert merged HF model to GGUF
+### 3.2 Convert merged HF model to GGUF
 ```bash
 python3.12 convert_hf_to_gguf.py ../merged-model-tinyllama     --outfile ../llama-sql-f16.gguf     --outtype f16
 ```
 
 ---
 
-## 5. Quantization (optional but recommended)
+## 4. Quantization (optional but recommended)
 
 ```bash
 ./build/bin/llama-quantize ../llama-sql-f16.gguf ../llama-sql-Q4_K_M.gguf Q4_K_M
@@ -70,7 +70,7 @@ llama-sql-f16.gguf  -> ~2.0 GB
 llama-sql-Q4_K_M.gguf -> ~637 MB
 ```
 
-## 6. Create Ollama Model
+## 5. Create Ollama Model
 
 `Modelfile` example:
 ```
@@ -87,12 +87,13 @@ TEMPLATE """
 PARAMETER temperature 0
 ```
 
-## 7. Create model in Ollama:
+## 6. Create model in Ollama:
 ```bash
-ollama create sql-llm -f Modelfile
+ollama rm sql-llm:latest 2>/dev/null || true
+ollama create sql-llm:latest -f Modelfile
 ```
 
-## 8. Run Queries
+## 7. Run Queries
 
 Example:
 ```bash
