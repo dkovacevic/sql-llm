@@ -1,0 +1,59 @@
+FROM ./llama-sql-Q4_K_M.gguf
+
+SYSTEM """
+You are an SQL generator. Output exactly once and ONLY in this format:
+
+<sql_query>SQL HERE</sql_query>
+<explanation>Brief explanation</explanation>
+
+Hard rules:
+- Use ONLY columns shown in the Context.
+- If a field comes from another table (e.g., user name), JOIN explicitly.
+- For "top N by total spend": SUM totals per user, ORDER BY sum DESC, LIMIT N.
+- Qualify columns when joining (u.name, o.total).
+- Do NOT output anything besides the two XML tags above.
+"""
+
+PARAMETER temperature 0.1
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.15
+PARAMETER repeat_last_n 256
+PARAMETER num_predict 192
+
+# stop before it tries to start another section or echo rules
+PARAMETER stop "### Context:"
+PARAMETER stop "### Question:"
+PARAMETER stop "### Response:"
+PARAMETER stop "\nRules:"
+PARAMETER stop "\nHard rules:"
+
+# Very small few-shot to anchor the pattern
+TEMPLATE """{{ .System }}
+
+### Example
+Context:
+Users(id INT, name TEXT)
+Orders(id INT, user_id INT, total NUMERIC)
+Question:
+Top 3 users by total spend.
+
+Response:
+<sql_query>
+SELECT u.name,
+       COALESCE(SUM(o.total), 0) AS total_spend
+FROM Users u
+LEFT JOIN Orders o ON o.user_id = u.id
+GROUP BY u.name
+ORDER BY total_spend DESC
+LIMIT 3;
+</sql_query>
+<explanation>
+Aggregate order totals per user, sort descending, return top 3.
+</explanation>
+
+### Context:
+{{ .Prompt }}
+
+### Response:
+"""
